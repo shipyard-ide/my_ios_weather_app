@@ -5,6 +5,79 @@
 
 import SwiftUI
 
+struct Raindrop: Identifiable {
+    let id = UUID()
+    var x: CGFloat
+    var y: CGFloat
+    let speed: CGFloat
+    let length: CGFloat
+    let opacity: Double
+}
+
+struct RainView: View {
+    let isRaining: Bool
+    @State private var raindrops: [Raindrop] = []
+    @State private var timer: Timer?
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                ForEach(raindrops) { drop in
+                    Capsule()
+                        .fill(Color.white.opacity(drop.opacity))
+                        .frame(width: 2, height: drop.length)
+                        .position(x: drop.x, y: drop.y)
+                }
+            }
+            .onAppear {
+                if isRaining {
+                    startRain(in: geometry.size)
+                }
+            }
+            .onChange(of: isRaining) { _, raining in
+                if raining {
+                    startRain(in: geometry.size)
+                } else {
+                    stopRain()
+                }
+            }
+            .onDisappear {
+                stopRain()
+            }
+        }
+    }
+    
+    private func startRain(in size: CGSize) {
+        stopRain()
+        
+        raindrops = (0..<100).map { _ in
+            Raindrop(
+                x: CGFloat.random(in: 0...size.width),
+                y: CGFloat.random(in: -size.height...size.height),
+                speed: CGFloat.random(in: 8...15),
+                length: CGFloat.random(in: 15...30),
+                opacity: Double.random(in: 0.2...0.5)
+            )
+        }
+        
+        timer = Timer.scheduledTimer(withTimeInterval: 0.03, repeats: true) { _ in
+            for i in raindrops.indices {
+                raindrops[i].y += raindrops[i].speed
+                if raindrops[i].y > size.height + 50 {
+                    raindrops[i].y = -50
+                    raindrops[i].x = CGFloat.random(in: 0...size.width)
+                }
+            }
+        }
+    }
+    
+    private func stopRain() {
+        timer?.invalidate()
+        timer = nil
+        raindrops = []
+    }
+}
+
 struct WeatherCondition: Identifiable {
     let id = UUID()
     let day: String
@@ -101,10 +174,20 @@ struct ContentView: View {
         )
     }
     
+    private var isRainyCondition: Bool {
+        let rainyKeywords = ["rain", "rainy", "drizzle", "shower", "storm", "thunderstorm"]
+        return rainyKeywords.contains { condition.lowercased().contains($0) }
+    }
+    
     var body: some View {
         ZStack {
             backgroundGradient
                 .ignoresSafeArea()
+            
+            if isRainyCondition {
+                RainView(isRaining: true)
+                    .ignoresSafeArea()
+            }
             
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 24) {
